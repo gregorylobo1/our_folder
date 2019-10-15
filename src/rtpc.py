@@ -24,19 +24,54 @@ global flag
 flag=2
 key=0
 
+def HSVconv(vec):
+
+    #print(vec)
+    vec=np.ndarray.tolist(vec)
+    #print(vec)
+
+    #vec=float(vec)
+
+    minval=float(min(vec))
+    mincol=vec.index(minval)
+    maxval=float(max(vec))
+    maxcol=vec.index(maxval)
+
+    C=maxval-minval
+
+
+    H=60*(maxcol*2+(vec[(maxcol+1)%3]-vec[(maxcol+2)%3])/C)
+    #print(H)
+
+    S=C/maxval
+    V=maxval/255
+
+    if H<0:
+      H=H+360
+
+    #print(vec[(maxcol+1)%3])
+
+    return [H, S, V]
+
+
+
+
+
+
 class Server:
     def __init__(self):
         self.person = {}
         self.colours = None
         self.loc= [0.5,0,0]
         self.camera=None
+        self.sight=1
 
     def RGB_callback(self, msg):
         # "Store" message received.
         global flag
 
-        #if key is not 0:
-        #    return
+        if key is not 0:
+            return
         #self.orientation = msg
 
         #print('RGB')
@@ -70,6 +105,11 @@ class Server:
 
         data=msg
         print('depth')
+        key=1
+
+        if self.sight==0:
+            print('blind')
+            return
 
         global flag
         f=580
@@ -124,7 +164,7 @@ class Server:
             if(c==640):
                 c=0
                 r=r+1
-        #key=1
+        key=0
         self.person=pers
         self.findperson()
         if flag==0:
@@ -142,6 +182,11 @@ class Server:
         self.loc=[msg.x, msg.y, msg.z]
         #print('legs: ' + str(self.loc))
         #print(msg)
+        theta=math.atan2(msg.y,msg.x)/math.pi*180
+        if theta > 30 or msg.z>3:
+            self.sight = 0
+        else:
+            self.sight=1
 
     def findperson(self):
         print('DOINGIT')
@@ -171,17 +216,22 @@ class Server:
             #print(validcols)
             plt.close()
 
-        
+
         self.kmeans(validcols,2,3)
 
 
         #print(str(sum(validcols)/len(validcols)))
 
     def kmeans(self,data,K,iterations):
+        print('means')
         data=np.array(data)
         print(data.shape[0])
         datasize=data.shape[0]
         datanew=[]
+
+        if len(data)<100:
+            return
+
         for i in range(datasize):
 
             greycheck=abs(sum(data[i,:]-data[i,0]))
@@ -191,6 +241,8 @@ class Server:
             #print(greycheck)
             datanew.append(data[i,:])
 
+        if len(datanew)<20:
+            return
 
         datanew=np.array(datanew)
         fig = plt.figure()
@@ -252,17 +304,10 @@ class Server:
 
 
 
-
-        print(means)
+        #print(means)
+        for m in range(K):
+            print(HSVconv(means[m,:]))
         print(ccarray)
-        #self.camera=None
-        #self.person={}
-        #plt.show()
-
-        #print(data[0,:])
-        #print(str(r[0]) + str(g[0]) + str(b[0]))
-        #means=
-        #for meaninit in range(K):
 
 
 
@@ -273,5 +318,5 @@ if __name__ == '__main__':
     rospy.Subscriber('/vector', Vector3, server.legset, queue_size=1)
     rospy.Subscriber('/camera/rgb/image_color/', Image, server.RGB_callback, queue_size=1)
     rospy.Subscriber('/camera/depth/image/', Image, server.depth_callback, queue_size=1)
-
+    #print(HSVconv([33, 151, 200]))
     rospy.spin()
