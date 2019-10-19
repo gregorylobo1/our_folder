@@ -87,6 +87,9 @@ class Server:
             return
 
         for vl in range(48):
+
+            consec=0
+
             for hl in range(160):
                 pixel=self.camera[(479-vl*10),(hl*4),:]
                 pixel=HSVconv(pixel)
@@ -97,6 +100,8 @@ class Server:
                 if hdiff<10 and sdiff<0.2:
                     #print('FOUND')
                     #print()
+                    consec+=1
+
                     p1=msg.data[(479-vl*10)*640+(hl*4)*4+0]
                     p2=msg.data[(479-vl*10)*640+(hl*4)*4+1]
                     p3=msg.data[(479-vl*10)*640+(hl*4)*4+2]
@@ -126,7 +131,11 @@ class Server:
                     zpa=math.sin(adj)*xp+math.cos(adj)*zp
 
                     newguess.append([xpa,yp,zpa])
+                else:
+                    consec=0
 
+                if consec==5:
+                    break
 
         newguess=np.array([newguess])
         finalguess=np.median(newguess[0,:,:], axis=0)
@@ -144,7 +153,7 @@ class Server:
         #    return
         #self.orientation = msg
 
-        #print('RGB')
+        print('RGB')
 
         count=0
         data=msg
@@ -175,7 +184,7 @@ class Server:
 
         data=msg
         #print('depth')
-        
+
 
         if self.sight==0:
             #print('blind')
@@ -252,6 +261,10 @@ class Server:
             flag=2
 
     def legset(self,msg):
+
+        if self.sight==0:
+            return
+
         self.loc=[msg.x, msg.y, msg.z]
         #print('legs: ' + str(self.loc))
         #print(msg)
@@ -443,7 +456,7 @@ if __name__ == '__main__':
 
     server = Server()
     rospy.Subscriber('/vector', Vector3, server.legset, queue_size=1)
-    rospy.Subscriber('/camera/rgb/image_color/', Image, server.RGB_callback, queue_size=1)
-    rospy.Subscriber('/camera/depth/image/', Image, server.depth_callback, queue_size=1)
+    rospy.Subscriber('/camera/rgb/image_color/', Image, server.RGB_callback, queue_size=1, buff_size=6553600)
+    rospy.Subscriber('/camera/depth/image/', Image, server.depth_callback, queue_size=1, buff_size=6553600)
     #print(HSVconv([33, 151, 200]))
     rospy.spin()
