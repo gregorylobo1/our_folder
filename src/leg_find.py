@@ -37,7 +37,7 @@ def conf_det(pre_x, pre_y, new_x, new_y):
     '''
     determine how likely this leg is to match previous leg scan
     '''
-    x_off = 0.4
+    x_off = 0.1
     y_off = 0.1
     stride_est = 0.7
     x_scale = 1

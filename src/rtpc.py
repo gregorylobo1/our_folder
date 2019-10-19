@@ -38,6 +38,8 @@ def HSVconv(vec):
     maxcol=vec.index(maxval)
 
     C=maxval-minval
+    if(C==0):
+        return[0,0,0]
 
 
     H=60*(maxcol*2+(vec[(maxcol+1)%3]-vec[(maxcol+2)%3])/C)
@@ -61,17 +63,85 @@ def HSVconv(vec):
 class Server:
     def __init__(self):
         self.person = {}
-        self.colours = None
+        self.colours = []
         self.loc= [0.5,0,0]
-        self.camera=None
+        self.camera=[]
         self.sight=1
+        #self.rawdepth=None
+
+    def locatepers(self,msg):
+        #print('looking for')
+        mostcolour=0
+        mostcolpos=0
+        adj=math.pi/6
+        newguess=[]
+
+        for max in range(len(self.colours)):
+            if(self.colours[max][3]>mostcolour):
+                mostcolour=self.colours[max][3]
+                mostcolpos=max
+
+        target=self.colours[mostcolpos]
+        #print(target)
+        if len(self.camera)<2:
+            return
+
+        for vl in range(48):
+            for hl in range(160):
+                pixel=self.camera[(479-vl*10),(hl*4),:]
+                pixel=HSVconv(pixel)
+
+                hdiff=abs(pixel[0]-target[0])
+                sdiff=abs(pixel[1]-target[1])
+
+                if hdiff<10 and sdiff<0.2:
+                    #print('FOUND')
+                    #print()
+                    p1=msg.data[(479-vl*10)*640+(hl*4)*4+0]
+                    p2=msg.data[(479-vl*10)*640+(hl*4)*4+1]
+                    p3=msg.data[(479-vl*10)*640+(hl*4)*4+2]
+                    p4=msg.data[(479-vl*10)*640+(hl*4)*4+3]
+
+                    point=[p1,p2,p3,p4]
+
+                    # aa=str(bytearray(list1))  # edit: this conversion wasn't needed
+                    aa= bytearray(point)
+                    bb=struct.unpack('<f', aa)[0]
+                    if math.isnan(bb):
+                        continue
+
+                    #if (bb<self.loc[0]+0.2) or (bb>self.loc[0]-0.2):
+
+
+                    x=320-(hl*4)
+                    y=240-(479-vl*10)
+
+                    xp=bb
+                    yp=bb/580*x
+                    zp=bb/580*y
+
+                    xpa=math.cos(adj)*xp-math.sin(adj)*zp
+                    if xpa>3.5:
+                        continue
+                    zpa=math.sin(adj)*xp+math.cos(adj)*zp
+
+                    newguess.append([xpa,yp,zpa])
+
+
+        newguess=np.array([newguess])
+        finalguess=np.median(newguess[0,:,:], axis=0)
+        print(finalguess)
+        self.camera=[]
+        #rospy.sleep(0.5)
+
+
 
     def RGB_callback(self, msg):
         # "Store" message received.
         global flag
 
-        if key is not 0:
-            return
+        #if key is not 0:
+        #    return
         #self.orientation = msg
 
         #print('RGB')
@@ -104,13 +174,16 @@ class Server:
     def depth_callback(self, msg):
 
         data=msg
-        print('depth')
-        key=1
+        #print('depth')
+        
 
         if self.sight==0:
-            print('blind')
+            #print('blind')
+            #self.rawdepth=msg
+            self.locatepers(msg)
             return
 
+        key=1
         global flag
         f=580
         w=data.width
@@ -184,9 +257,12 @@ class Server:
         #print(msg)
         theta=math.atan2(msg.y,msg.x)/math.pi*180
         if theta > 30 or msg.z>3:
+            if self.sight==1:
+                print('going blind')
+
             self.sight = 0
-        else:
-            self.sight=1
+        #else:
+            #self.sight=1
 
     def findperson(self):
         print('DOINGIT')
@@ -245,9 +321,9 @@ class Server:
             return
 
         datanew=np.array(datanew)
-        fig = plt.figure()
-        ax = fig.add_subplot(111, projection='3d')
-        ax.scatter(datanew[:,0],datanew[:,1],datanew[:,2])
+        #fig = plt.figure()
+        #ax = fig.add_subplot(111, projection='3d')
+        #ax.scatter(datanew[:,0],datanew[:,1],datanew[:,2])
 
         means=[]
         ccarray=np.empty(K)
@@ -305,11 +381,62 @@ class Server:
 
 
         #print(means)
-        for m in range(K):
-            print(HSVconv(means[m,:]))
         print(ccarray)
 
+        for m in range(K):
+            print('check for: ')
+            print(HSVconv(means[m,:]))
 
+            if ccarray[m]/float(len(datanew))> 0.2 and ccarray[m]<float(len(datanew)):
+                self.storemeans(HSVconv(means[m,:]))
+
+
+    def storemeans(self,msg):
+        print('storing')
+        saved=0
+
+        newm=np.zeros(4)
+        newm[:3]=np.array(msg)
+        newm[3]=1
+        #newm=np.concatenate(msg,np.array([1]),axis=1)
+
+        if len(self.colours)<1:
+            print('new')
+            self.colours.append(newm)
+            return
+
+        for m in range(len(self.colours)):
+            mcol=self.colours[m]
+            hdiff=abs(newm[0]-mcol[0])
+            sdiff=abs(newm[1]-mcol[1])
+
+            if hdiff<10 and sdiff<0.18:
+                print('adjust')
+                mcol[:3]=mcol[:3]*mcol[3]
+                mcol+=newm
+                mcol[:3]=mcol[:3]/mcol[3]
+                self.colours[m]=mcol
+                saved=1
+
+        if(len(self.colours)>5):
+            mostcolour=0
+            mostcolpos=0
+            for max in range(len(self.colours)):
+                if(self.colours[max][3]>mostcolour):
+                    mostcolour=self.colours[max][3]
+                    mostcolpos=max
+
+            newlist=[]
+            newlist.append(self.colours[mostcolpos])
+            self.colours=newlist
+            print('purge')
+
+        if saved==0:
+            print('add')
+            self.colours.append(newm)
+
+        #print('final')
+        #print(self.colours)
 
 if __name__ == '__main__':
     rospy.init_node('listener')

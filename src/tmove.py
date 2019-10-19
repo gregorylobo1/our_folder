@@ -121,9 +121,9 @@ def move():
 	#defining Variables
 	angular_speed=.015
 	linear_speed=1.5
-	safe_dist=0.55
-	integ=1
-	const=0.3
+	safe_dist=0.5
+	integ=0
+	const=0
 
 	xpos=0
 	ypos=0
@@ -174,7 +174,7 @@ def move():
 
 		#move to correct angle
 		r=rospy.Rate(10)
-		while(angleflag<3) and not rospy.is_shutdown():
+		while(angleflag<1) and not rospy.is_shutdown():
 
 			#print(thetag)
 
@@ -183,14 +183,16 @@ def move():
 			print(vel_msg.linear.x)
 			#vel_msg.linear.x=0
 			if(distance-safe_dist<0):
-					vel_msg.linear.x=0
+				vel_msg.linear.x=0
 
 			if(zdat>3) or (abs(thetag)>50):
-					vel_msg.linear.x=0
+				vel_msg.linear.x=0
 
 			if(abs(thetag-theta)<2):
 				vel_msg.angular.z=0
 
+			if(zdat==0):
+				vel_msg.linear.x=0
 
 			velocity_publisher.publish(vel_msg)
 			angleflag=angleflag+1
