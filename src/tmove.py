@@ -130,7 +130,7 @@ def move():
 	theta=0
 
 	#starts new node
-	rospy.init_node('followcmds', anonymous=True)
+	rospy.init_node('Movement', anonymous=True)
 
 	#velocity publisher for pioneer
 	velocity_publisher=rospy.Publisher('/RosAria/cmd_vel', Twist, queue_size=1)

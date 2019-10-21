@@ -71,11 +71,17 @@ class Server:
 
     def locatepers(self,msg):
         #print('looking for')
+
+        guesspub=rospy.Publisher('/kinect_guess', Vector3, queue_size=1)
+
         mostcolour=0
         mostcolpos=0
         adj=math.pi/6
         newguess=[]
 
+        if len(self.colours)<1:
+            self.sight=1
+            return
         for max in range(len(self.colours)):
             if(self.colours[max][3]>mostcolour):
                 mostcolour=self.colours[max][3]
@@ -84,6 +90,7 @@ class Server:
         target=self.colours[mostcolpos]
         #print(target)
         if len(self.camera)<2:
+            #self.sight=1
             return
 
         for vl in range(48):
@@ -126,23 +133,30 @@ class Server:
                     zp=bb/580*y
 
                     xpa=math.cos(adj)*xp-math.sin(adj)*zp
-                    if xpa>3.5:
+                    if xpa>2.5:
                         continue
                     zpa=math.sin(adj)*xp+math.cos(adj)*zp
 
-                    newguess.append([xpa,yp,zpa])
+                    #if consec>4:
+                    newguess.append([xpa/2,yp/2,zpa/2])
                 else:
                     consec=0
 
-                if consec==5:
-                    break
+                #if consec==10:
+                #    break
 
         newguess=np.array([newguess])
-        finalguess=np.median(newguess[0,:,:], axis=0)
+        finalguess=np.mean(newguess[0,:,:], axis=0)
         print(finalguess)
+        #print(newguess.shape)
+        pos=Vector3(finalguess[0],finalguess[1],finalguess[2])
+        if(newguess.shape[1]>50):
+            guesspub.publish(pos)
+            self.sight=1
         self.camera=[]
+        #self.sight=1
+        #print(pos)
         #rospy.sleep(0.5)
-
 
 
     def RGB_callback(self, msg):
@@ -190,6 +204,8 @@ class Server:
             #print('blind')
             #self.rawdepth=msg
             self.locatepers(msg)
+            return
+        if self.sight==2:
             return
 
         key=1
@@ -262,18 +278,26 @@ class Server:
 
     def legset(self,msg):
 
-        if self.sight==0:
-            return
+        #if self.sight==0:
+        #    return
 
         self.loc=[msg.x, msg.y, msg.z]
         #print('legs: ' + str(self.loc))
         #print(msg)
         theta=math.atan2(msg.y,msg.x)/math.pi*180
-        if theta > 30 or msg.z>3:
+        if msg.z>=3 or msg.z==-1:
+            #if self.sight==1:
+            print('going blind')
+            self.sight=0
+        if abs(theta) > 30:
             if self.sight==1:
-                print('going blind')
+                print('out of frame')
+                self.sight = 2
+        if msg.z<3 and abs(theta)<30:
+            if self.sight==2:
+                self.sight=1
 
-            self.sight = 0
+
         #else:
             #self.sight=1
 
