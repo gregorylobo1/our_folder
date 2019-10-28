@@ -104,7 +104,7 @@ class Server:
                 hdiff=abs(pixel[0]-target[0])
                 sdiff=abs(pixel[1]-target[1])
 
-                if hdiff<10 and sdiff<0.2:
+                if hdiff<6 and sdiff<0.20:
                     #print('FOUND')
                     #print()
                     consec+=1
@@ -137,8 +137,8 @@ class Server:
                         continue
                     zpa=math.sin(adj)*xp+math.cos(adj)*zp
 
-                    #if consec>4:
-                    newguess.append([xpa/2,yp/2,zpa/2])
+                    if consec>3:
+                        newguess.append([xpa/2,yp/2,zpa/2])
                 else:
                     consec=0
 
@@ -148,12 +148,12 @@ class Server:
         newguess=np.array([newguess])
         finalguess=np.mean(newguess[0,:,:], axis=0)
         print(finalguess)
-        #print(newguess.shape)
+        print(newguess.shape)
         pos=Vector3(finalguess[0],finalguess[1],finalguess[2])
-        if(newguess.shape[1]>50):
+        if(newguess.shape[1]>1):
             guesspub.publish(pos)
             self.sight=1
-        self.camera=[]
+        #self.camera=[]
         #self.sight=1
         #print(pos)
         #rospy.sleep(0.5)
@@ -197,7 +197,7 @@ class Server:
     def depth_callback(self, msg):
 
         data=msg
-        #print('depth')
+        print('depth')
 
 
         if self.sight==0:
@@ -266,13 +266,15 @@ class Server:
         self.person=pers
         self.findperson()
         if flag==0:
+            flag=2
+            print('here MIOGBAFND')
             im=np.array(im)
             fig = plt.figure()
             ax = fig.add_subplot(111, projection='3d')
             ax.scatter(im[:,0],im[:,1],im[:,2])
-            plt.ylabel='x'
-            plt.xlabel='y'
-            plt.zlabel='bb'
+            #plt.ylabel='x'
+            #plt.xlabel='y'
+            #plt.zlabel='bb'
             plt.show()
             flag=2
 
@@ -285,7 +287,7 @@ class Server:
         #print('legs: ' + str(self.loc))
         #print(msg)
         theta=math.atan2(msg.y,msg.x)/math.pi*180
-        if msg.z>=3 or msg.z==-1:
+        if msg.z>=6 or msg.z==-1:
             #if self.sight==1:
             print('going blind')
             self.sight=0
@@ -323,11 +325,11 @@ class Server:
                     unproc_image[r,c,:]=0
 
         if flag==3:
-            flag=3
+            flag=2
             plt.imshow(unproc_image)
             plt.show()
             #print(validcols)
-            plt.close()
+            #plt.close()
 
 
         self.kmeans(validcols,2,3)
@@ -357,10 +359,13 @@ class Server:
         if len(datanew)<20:
             return
 
+        #print(datanew)
+        rospy.spin()
         datanew=np.array(datanew)
         #fig = plt.figure()
         #ax = fig.add_subplot(111, projection='3d')
         #ax.scatter(datanew[:,0],datanew[:,1],datanew[:,2])
+
 
         means=[]
         ccarray=np.empty(K)
@@ -447,7 +452,7 @@ class Server:
             hdiff=abs(newm[0]-mcol[0])
             sdiff=abs(newm[1]-mcol[1])
 
-            if hdiff<10 and sdiff<0.18:
+            if hdiff<5 and sdiff<0.18:
                 print('adjust')
                 mcol[:3]=mcol[:3]*mcol[3]
                 mcol+=newm
@@ -472,7 +477,7 @@ class Server:
             print('add')
             self.colours.append(newm)
 
-        #print('final')
+        print('final')
         #print(self.colours)
 
 if __name__ == '__main__':

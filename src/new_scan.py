@@ -9,13 +9,14 @@ import math
 
 rospy.init_node('scan_read')
 
-ns_pub = rospy.Publisher("new_scan", LaserScan, queue_size = 1)
+ns_pub = rospy.Publisher("/new_scan", LaserScan, queue_size = 1)
 
 def read_cb(data):
     # reset feature variables
     angle = []
-    rmin = 0.030
+    rmin = 0.025
     rmax = 3
+    ang_range = 1.75
 
     # new data that is shortened
     newdata = data
@@ -29,11 +30,11 @@ def read_cb(data):
     # reject invalid data and initialise new data to be processed
     for d, data_l in enumerate(data.ranges):
         angle.append(ang_min + d*a_inc)
-        if data_l < rmin or data_l > rmax or math.isnan(data_l) or d < 3:
+        if data_l < rmin or data_l > rmax or math.isnan(data_l) or abs(angle[d]) > ang_range:
             new_scan[d] = float('nan')
 
-    print(len(angle))
-    print('angle = ' + str(angle))
+    #print(len(angle))
+    #print('angle = ' + str(angle))
     newdata.ranges = list(new_scan)
     ns_pub.publish(newdata)
 

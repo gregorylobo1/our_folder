@@ -46,7 +46,7 @@ def angle_goal(xgoal,ygoal):
 	global theta
 
 	thetag=math.atan2((ygoal),(xgoal))/math.pi*180
-	print(thetag)
+	#print(thetag)
 
 	return thetag
 
@@ -120,10 +120,12 @@ def move():
 
 	#defining Variables
 	angular_speed=.015
-	linear_speed=1.5
+	linear_speed=1
 	safe_dist=0.5
 	integ=0
-	const=0
+	const=0.15
+	error_cur=0
+	error_new=0
 
 	xpos=0
 	ypos=0
@@ -157,10 +159,14 @@ def move():
 		#calculate goal angle relative to the robot's pose
 		thetag=angle_goal(xgoal,ygoal)
 		vel_msg.angular.z=angular_speed*(thetag)
+		if zdat==-1:
+			vel_msg.angular.z=vel_msg.angular.z/1.5
 		angleflag=0
 
 		distance=abs_dist(xgoal,ygoal)
 
+		error_old=error_new
+		error_new=distance-safe_dist
 
 		#set velocity values
 		vel_msg.linear.y=0
@@ -179,11 +185,12 @@ def move():
 			#print(thetag)
 
 			distance=abs_dist(xgoal,ygoal)
-			vel_msg.linear.x=(distance-safe_dist)*linear_speed+integ*(0.5*distance*distance-safe_dist*distance)-const*safe_dist
-			print(vel_msg.linear.x)
+			#vel_msg.linear.x=(distance-safe_dist)*linear_speed
+			vel_msg.linear.x=error_new*linear_speed+(error_old+error_new)*integ+(error_new-error_old)/0.1*const
+			print(error_new-error_old)
 			#vel_msg.linear.x=0
-			if(distance-safe_dist<0):
-				vel_msg.linear.x=0
+			#if(vel_msg.linear.x<-.05):
+			#	vel_msg.linear.x=-.05
 
 			if(zdat>3) or (abs(thetag)>50):
 				vel_msg.linear.x=0
@@ -191,9 +198,11 @@ def move():
 			if(abs(thetag-theta)<2):
 				vel_msg.angular.z=0
 
-			if(zdat==0):
+			if(zdat<=0):
 				vel_msg.linear.x=0
 
+			if distance<0.25:
+				vel_msg.linear.x=0
 			velocity_publisher.publish(vel_msg)
 			angleflag=angleflag+1
 			r.sleep()
